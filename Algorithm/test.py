@@ -22,25 +22,32 @@ def control_vel(joint_ids, positions):
     for joint_id, position in zip(joint_ids, positions):
         data.ctrl[joint_id] = position  # 使用 actuator 来控制关节位置
 
-origin_pos = np.array([0.0291812, -0.00117808, 0.1737953])
-start_pos = np.array([0.02787045, 0.00068883, 0.51154592]) - origin_pos
-end_pos = np.array([0.31583718 ,0.00741404 ,0.0830804 ]) - origin_pos
 
-# path_list=kinematic.generate_path(start_pos,end_pos,end_d=0.05)
-# result_list=kinematic.select_alpha(path_list,np.pi/6,1.2+0.6+1.4-0.2)
+# origin_pos = np.array([0.05857364, -0.00254144,  0.1743498])
+# start_pos = np.array([0.02787045 ,0.00068883, 0.4154592]) - origin_pos
+# end_pos = np.array([0.24 ,-3.17631695e-05 , 9.82053450e-02 ]) - origin_pos
+
+# path_list=kinematic.generate_path(start_pos,end_pos,end_d=0.03)
+# result_list=kinematic.select_alpha(path_list,np.pi/2,1.2+0.5+1.5+np.pi/2)
+
 # angle_list=kinematic.inverse_kinematic_with_alpha(path_list,result_list)
-# joint_list=[kinematic.wrap_to_2pi(t)-np.pi for t in angle_list]
+
+# def normalize_to_pi(angle_array):
+#     # 将角度值变化到 -pi 到 pi 之间
+#     return (angle_array + np.pi) % (2 * np.pi) - np.pi
+# joint_list=angle_list
+# joint_list=normalize_to_pi(angle_list)
 # 持续运行模拟
-joint_angles = np.array([0., 0., 0., 0, 0., 0,0])
+joint_angles = np.array([0., 0., 0., 0, 0., 0])
 # vel = [1000, 20, 1000, 20]
 vel=[0,0,0,0,0,0]
-target_get_joint_angles=np.array([0,-1.2, 0.5, 1.5 ,0,0.2,0.2])
+target_get_joint_angles=np.array([0,-1, 0.8, 1.4,0,0])
 
-d1=200
+d1=400
 start=0
 end=d1
 delta_joints=(target_get_joint_angles-joint_angles)/d1
-d2=300
+d2=500
 idx=0
 times=0
 
@@ -53,22 +60,27 @@ viewer.add_line_to_fig('trajectory', 0)  # 添加到第一个图形（索引0）
 while True:
     if(start<idx<d1):
         joint_angles+=delta_joints
-    # if(d2<idx<d2+300):
-    #     if idx%3==0:
-    #         i=int((idx-d2)/3)
+    # if(d2<idx<d2+500):
+    #     if idx%5==0:
+    #         i=int((idx-d2)/5)
     #         joint_angles[1:4]=joint_list[i]
+    #         joint_angles[1]*=-1
+    # print(idx,joint_angles)
         
     control_joints([0,1,2,3,4,5], list(joint_angles))    
-    control_vel([6,7,8,9], vel)            
+    control_vel([6,7,8,9], vel)
     mujoco.mj_step(model, data)
     idx+=1
     # geom_name = model.geom(14).name
     geom_pos_12 = data.geom_xpos[12]
     geom_pos_14 = data.geom_xpos[14]
     mid_pos = (geom_pos_12 + geom_pos_14) / 2
-    print( mid_pos)
-    # 添加当前位置到轨迹
-    trajectory.append(mid_pos)
+    print(mid_pos)
+    j2=data.geom_xpos[8]
+    # 获得关节角度
+    # print(np.linalg.norm(j2-mid_pos))
+    # print(mid_pos)
+    trajectory.append(list(mid_pos))
     
     # 保持轨迹长度在一定范围内，避免性能问题
     if len(trajectory) > max_traj_length:

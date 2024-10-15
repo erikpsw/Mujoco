@@ -14,6 +14,49 @@ L1=0.10513
 L2=0.09761
 L3=0.17093
 
+def get_all_state(joints):
+    x0, y0 = 0, 0
+    DH = np.array([
+        [joints[0], L1],
+        [joints[1], L2],
+        [joints[2], L3],
+    ])
+    DH_tmp = DH
+    DH_tmp[0, 0] += np.pi / 2
+    pos = np.array([
+        [1, 0, x0],
+        [0, 1, y0],
+        [0, 0, 1]
+    ])
+    p_list = [np.array([x0, y0, 0])]
+    for link in DH_tmp:
+        theta = link[0]
+        d = link[1]
+        # 转换矩阵
+        T = np.array([
+            [cos(theta), -sin(theta), cos(theta) * d],
+            [sin(theta), cos(theta), sin(theta) * d],
+            [0, 0, 1]
+        ])
+        pos = pos @ T
+        p_list.append(np.append(pos[:2, 2], [theta]))
+    # print(DH[:,0].sum())
+    return p_list, DH[:, 0].sum()
+
+
+def plot_robot(p_list, color="red"):
+    # 提取节点坐标的x、y、z值
+    x = [p[0] for p in p_list]
+    y = [p[1] for p in p_list]
+    # nodes = ax.scatter(x, y, z, marker='o')
+    fig, ax = plt.subplots(1, 1,dpi=150)
+
+    lines = []
+    x_traj, y_traj = [], []
+    # 绘制连接线
+    for i in range(len(p_list) - 1):
+        line, = ax.plot([x[i], x[i + 1]], [y[i], y[i + 1]], color=color)
+        lines.append(line)
 
 color1 = next(plt.gca()._get_lines.prop_cycler)['color']
 
@@ -30,11 +73,24 @@ def wrap_to_2pi(angle):
     """transform the angle to [0, 2pi]"""
     return angle % (2 * np.pi)
 
-def get_all_state(DH):
+def wrap_to_pi(angle):
+    """Wrap angle to [-pi, pi] range"""
+    return (angle + np.pi) % (2 * np.pi) - np.pi
+
+def normalize_to_pi(angle_array):
+    # 将角度值变化到 -pi 到 pi 之间
+    return (angle_array + np.pi) % (2 * np.pi) - np.pi
+
+def get_all_state(joints):
     """
     get the position of all joint and alpha
     """
     x0,y0=0,0
+    DH = np.array([
+    [joints[0],L1],
+    [joints[1],L2],
+    [joints[2],L3],
+    ])
     DH_tmp=copy.deepcopy(DH)
     DH_tmp[0,0]+=np.pi/2
     pos=np.array([
@@ -75,18 +131,11 @@ def calculate(x, y, theta):
     """
     inverse kinematic in 2D
     """
+    x=-x
     global L1,L2,L3
     
     joints=[0,0,0]
-    x=-x
-    DH = np.array([
-    [joints[0],L1],
-    [joints[1],L2],
-    [joints[2],L3],
-    ])
-    L1 = DH[0,1]  # 杆长
-    L2 = DH[1,1]
-    L3 = DH[2,1]
+
     alpha, beta, lp, Bx, By = 0.0, 0.0, 0.0, 0.0, 0.0
     
     Bx = x - L3*math.cos(theta) 
@@ -100,13 +149,13 @@ def calculate(x, y, theta):
     beta = math.acos((L1*L1 + lp - L2*L2) / (2*L1*math.sqrt(lp)))  # 这里使用弧度制
     
     ptheta = [0.0, 0.0, 0.0]
+    ptheta[0] =   alpha -  beta-np.pi/2
+    ptheta[1] = -(math.acos((L1*L1 + L2*L2 - lp) / (2*L1*L2)) - math.pi)
     # ptheta[0] =   alpha +  beta-np.pi/2
     # ptheta[1] = (math.acos((L1*L1 + L2*L2 - lp) / (2*L1*L2)) - math.pi)
-    ptheta[0] =   alpha -  beta-np.pi/2
-
-    ptheta[1] = -(math.acos((L1*L1 + L2*L2 - lp) / (2*L1*L2)) - math.pi)
-    
     ptheta[2] = -ptheta[0] - ptheta[1] + theta-np.pi/2
+
+    ptheta=[wrap_to_pi(theta) for theta in ptheta]
     return ptheta
         
 def trans_euler(euler):
@@ -220,7 +269,7 @@ def inverse_kinematic_with_alpha(path,alpha_list):
         res=cur_ans
         if(res!=1):
             result_list[index,:]=res
-    # print(result_list)
+    print(result_list)
     result_list=linear_interpolation(result_list)
     return result_list
 
@@ -312,7 +361,7 @@ def generate_filtered_path(point_list, end_d,p_num):
 
     return end_effector_pos_new,path,end_effector_pos,control_list
 
-def generate_path(start_pos, end_pos, end_d,p_num=100):
+def generate_path(start_pos, end_pos, end_d,p_num=300):
     """
     control point is above the end pos
     """
@@ -325,7 +374,7 @@ def generate_path(start_pos, end_pos, end_d,p_num=100):
     T = np.linspace(0, 1, p_num)
     path = np.zeros((p_num, 3))
     for i in range(p_num):
-        path[i] = de_casteljau(T[i], [start_pos, end_control_p, end_pos])
+        path[i] = de_casteljau(T[i], [start_pos,end_control_p, end_pos])
     return path
 
 def plot_segmented(data,color,linewidth):
@@ -416,8 +465,9 @@ def select_alpha(path,start_theta,end_theta):
     state_trans=0
     alpha_path=np.zeros(p_num)
 
-    p1=(end_theta-lower_limit_list4[-1])/(upper_limit_list4[-1]+lower_limit_list4[-1])
-    p2=(start_theta-lower_limit_list4[0])/(upper_limit_list4[0]+lower_limit_list4[0])
+    p1=(end_theta-lower_limit_list4[-1])/(upper_limit_list4[-1]-lower_limit_list4[-1])
+    print("p1",p1)
+    p2=(start_theta-lower_limit_list4[0])/(upper_limit_list4[0]-lower_limit_list4[0])
     p=(p1+p2)/2
     
     for i in range(p_num):
@@ -458,7 +508,7 @@ def select_alpha(path,start_theta,end_theta):
     def reward_func(Theta):
         center_factor=(Theta-Mu)@K_pv@(Theta-Mu).T
         smooth_factor=torch.norm(Theta[1:]-Theta[:-1])
-        return center_factor+20*smooth_factor
+        return center_factor+200*smooth_factor
 
     for i in range(2000):
         optimizer.zero_grad()
