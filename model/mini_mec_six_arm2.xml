@@ -24,6 +24,17 @@
     <mesh name="link10" file="link10.STL"/>
     <mesh name="link11" file="link11.STL"/>
   </asset>
+
+<default>
+    <joint damping=".03" actuatorfrcrange="-0.5 0.5"/>
+    <default class="wheel">
+      <geom type="cylinder" size=".028 .01" rgba=".5 .5 1 1"/>
+    </default>
+    <default class="decor">
+      <site type="box" rgba=".5 1 .5 1"/>
+    </default>
+  </default>
+
   <worldbody>
    <!-- <body name="moon" pos="0.094976 -0.075297 -1000"> -->
   <!-- <geom name="moon_geom" type="mesh" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" mesh="moon"/>
@@ -46,28 +57,28 @@
 <geom type="mesh" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" mesh="base_link"/>
       <inertial pos="0 0 0" mass="10.0" diaginertia="0.1 0.1 0.1"/> <!-- 增加 inertial 元素 -->
       
-      <body name="left_front_wheel_link" pos="0.094976 0.076703 0.038001">
-        <inertial pos="-3.09795e-06 0.0173322 4.43766e-06" quat="0.607654 0.361378 0.361142 0.608062" mass="0.0503853" diaginertia="7.74121e-06 5.77324e-06 5.77168e-06"/>
-        <joint name="left_front_wheel_joint" pos="0 0 0"  axis="0 1 0" damping="10.0"/>
-        <geom name="left_front_wheel_geom" type="mesh" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" mesh="left_front_wheel_link" friction="2 1 0.5" condim="3"/>
+      <body name="left_front_wheel_link" pos="0.094976 0.076703 0.038001" zaxis="0 1 0">
+        <inertial pos="-3.09795e-06 0.0173322 4.43766e-06" quat="0.607654 0.361378 0.361142 0.608062" mass="0.103853" diaginertia="7.74121e-06 5.77324e-06 5.77168e-06"/>
+        <joint name="left_front_wheel_joint" pos="0 0 0"  axis="0 0 1" type="hinge"/>
+        <geom name="left_front_wheel_geom" class="wheel" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" friction="1 0.005 0.0001" condim="1"/>
       </body>
       
-      <body name="left_rear_wheel_link" pos="-0.078024 0.076703 0.038001"> 
-        <inertial pos="-3.06188e-06 0.0173319 -5.84141e-06" quat="0.364611 0.605718 0.606127 0.364382" mass="0.0503852" diaginertia="7.74123e-06 5.7732e-06 5.77165e-06"/>
-        <joint name="left_rear_wheel_joint" pos="0 0 0" axis="0 1 0" damping="10.0"/>
-        <geom name="left_rear_wheel_geom" type="mesh" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" mesh="left_rear_wheel_link" friction="2 1 0.5" condim="3"/>
+      <body name="left_rear_wheel_link" pos="-0.078024 0.076703 0.038001" zaxis="0 1 0"> 
+        <inertial pos="-3.06188e-06 0.0173319 -5.84141e-06" quat="0.364611 0.605718 0.606127 0.364382" mass="0.103852" diaginertia="7.74123e-06 5.7732e-06 5.77165e-06"/>
+        <joint name="left_rear_wheel_joint" pos="0 0 0" axis="0 0 1"  type="hinge"/>
+        <geom name="left_rear_wheel_geom" class="wheel" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" friction="1 0.005 0.0001" condim="1"/>
     
       </body>
-      <body name="right_front_wheel_link" pos="0.094976 -0.075297 0.038001">
-        <inertial pos="3.0624e-06 -0.0173319 -5.84118e-06" quat="0.60563 0.364757 0.364529 0.606039" mass="0.0503852" diaginertia="7.74123e-06 5.7732e-06 5.77165e-06"/>
-        <joint name="right_front_wheel_joint" pos="0 0 0" axis="0 1 0" damping="10.0"/>
-        <geom name="right_front_wheel_geom" type="mesh" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" mesh="right_front_wheel_link" friction="2 1 0.5" condim="3"/>
+      <body name="right_front_wheel_link" pos="0.094976 -0.075297 0.038001" zaxis="0 1 0">
+        <inertial pos="3.0624e-06 -0.0173319 -5.84118e-06" quat="0.60563 0.364757 0.364529 0.606039" mass="0.103852" diaginertia="7.74123e-06 5.7732e-06 5.77165e-06"/>
+        <joint name="right_front_wheel_joint" pos="0 0 0" axis="0 0 1"  type="hinge"/>
+        <geom name="right_front_wheel_geom" class="wheel" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" friction="1 0.005 0.0001" condim="1"/>
     
       </body>
-      <body name="right_rear_wheel_link" pos="-0.078024 -0.075297 0.038001">
-        <inertial pos="3.09795e-06 -0.0173322 4.43766e-06" quat="0.361378 0.607654 0.608062 0.361142" mass="0.0503853" diaginertia="7.74121e-06 5.77324e-06 5.77168e-06"/>
-        <joint name="right_rear_wheel_joint" pos="0 0 0" axis="0 1 0" damping="10.0"/>
-        <geom name="right_rear_wheel_geom" type="mesh" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" mesh="right_rear_wheel_link" friction="2 1 0.5" condim="3"/>
+      <body name="right_rear_wheel_link" pos="-0.078024 -0.075297 0.038001" zaxis="0 1 0">
+        <inertial pos="3.09795e-06 -0.0173322 4.43766e-06" quat="0.361378 0.607654 0.608062 0.361142" mass="0.103853" diaginertia="7.74121e-06 5.77324e-06 5.77168e-06"/>
+        <joint name="right_rear_wheel_joint" pos="0 0 0" axis="0 0 1"  type="hinge"/>
+        <geom name="right_rear_wheel_geom" class="wheel" contype="1" conaffinity="1" group="1" density="0" rgba="1 1 1 1" friction="1 0.005 0.0001" condim="1"/>
       </body>
 
        <body name="link1" pos="0.054476 0.00070272 0.156"> 
