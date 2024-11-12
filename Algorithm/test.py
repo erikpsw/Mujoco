@@ -4,7 +4,7 @@ import numpy as np
 import kinematic
 
 # 设置模型文件路径
-model_path = "../model/mini_mec_six_arm2.xml"
+model_path = "../model/pick_box.xml"
 
 # 加载模型
 model = mujoco.MjModel.from_xml_path(model_path)
