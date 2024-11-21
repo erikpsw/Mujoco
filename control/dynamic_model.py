@@ -66,7 +66,7 @@ fig, ax = plt.subplots(figsize=(10, 10))
 robot = DifferentialDriveRobot()
 
 def init():
-    width=4
+    width=2
     ax.set_xlim(-width, width)
     ax.set_ylim(-width, width)
     ax.grid(True)
@@ -81,9 +81,12 @@ def animate(frame):
     
     # 模拟不同的运动模式
     t = frame * 0.1
-    vL = 0.5  # 左轮速度
-    vR = 0.45  # 右轮速度
-    
+    if frame<90:
+        vL = 1  # 左轮速度
+        vR = 0.9  # 右轮速度
+    # else:
+    #     vL = 0.8  # 左轮速度
+    #     vR = 1  # 右轮速度
     # 更新机器人状态
     ICR_x, ICR_y, R_ICR = robot.update_state(vL, vR, 0.01)
     

@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # 设置模型文件路径
-# model_path = "../model/mini_mec_six_arm_4wd.xml"
-model_path = "../model/mini_mec_six_arm_cylinder.xml"
+model_path = "../model/mini_mec_six_arm_4wd.xml"
+# model_path = "../model/mini_mec_six_arm_cylinder.xml"
 # 加载模型
 # 
 
@@ -26,7 +26,7 @@ def control_vel(joint_ids, positions):
 
 # 持续运行模拟
 joint_angles = [0, 0, 0, 0, 0, 0]
-vel = [200, 200, 200, 200]
+vel = [200, 400, 200, 400]
 # vel=[0,0,0,0]
 duration = 20
 
@@ -41,8 +41,8 @@ while viewer.is_alive:
     control_joints([0,1,2,3,4,5], joint_angles)    
     control_vel([6,7,8,9], vel)
     mujoco.mj_step(model, data)
-    # for i in range(10):           
-    #     mujoco.mj_step(model, data)
+    for i in range(10):           
+        mujoco.mj_step(model, data)
     geom_name = model.geom(14).name
     # 添加当前位置到轨迹
     geom_pos_12 = data.geom_xpos[12]

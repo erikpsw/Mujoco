@@ -4,7 +4,7 @@ import numpy as np
 import kinematic
 
 # 设置模型文件路径
-model_path = "../model/pick_box.xml"
+model_path = "../model/mini_mec_six_arm_4wd.xml"
 
 # 加载模型
 model = mujoco.MjModel.from_xml_path(model_path)
@@ -38,7 +38,7 @@ def control_vel(joint_ids, positions):
 # joint_list=angle_list
 # joint_list=normalize_to_pi(angle_list)
 # 持续运行模拟
-joint_angles = np.array([0., 0., 0., 0, 0., 0])
+joint_angles = np.array([0., -np.pi/3.,  np.pi/3, 0, 0., 0])
 # vel = [1000, 20, 1000, 20]
 vel=[0,0,0,0,0,0]
 target_get_joint_angles=np.array([0,-1, 0.8, 1.4,0,0])
@@ -47,7 +47,7 @@ d1=400
 start=0
 end=d1
 delta_joints=(target_get_joint_angles-joint_angles)/d1
-d2=500
+d2=250
 idx=0
 times=0
 
@@ -58,14 +58,11 @@ max_traj_length = 1000
 viewer.add_line_to_fig('trajectory', 0)  # 添加到第一个图形（索引0）
 
 while True:
-    if(start<idx<d1):
-        joint_angles+=delta_joints
-    # if(d2<idx<d2+500):
-    #     if idx%5==0:
-    #         i=int((idx-d2)/5)
-    #         joint_angles[1:4]=joint_list[i]
-    #         joint_angles[1]*=-1
-    # print(idx,joint_angles)
+    if(d2<idx<d2+500):
+        
+        joint_angles[1:4]=joint_list[i]
+        joint_angles[1]*=-1
+    print(idx,joint_angles)
         
     control_joints([0,1,2,3,4,5], list(joint_angles))    
     control_vel([6,7,8,9], vel)
