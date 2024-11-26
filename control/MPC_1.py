@@ -31,7 +31,7 @@ def compute_ABO(theta_r, v_r, t):
         [0, t]
     ])
     
-     # Compute the O_hat matrix
+    # Compute the O_hat matrix
     O_hat = np.array([
         [theta_r * t * v_r * np.sin(theta_r)],
         [- theta_r * t *  v_r * np.cos(theta_r)],
@@ -41,7 +41,7 @@ def compute_ABO(theta_r, v_r, t):
     return A_hat, B_hat, O_hat
 
 
-def cal_matrices(A,B,Q,w,N):
+def cal_matrices(A,B,Q,N):
     """
     计算MPC所需的矩阵
     参数:
@@ -52,28 +52,28 @@ def cal_matrices(A,B,Q,w,N):
     F: 终端权重矩阵
     N: 预测时域长度
     """
-    n = A.shape[0] # 状态维数
-    p = B.shape[1] # 输入维数
     
     # 构建预测矩阵 eye 仅有对角线
     M = np.zeros((N*n,n))  # 初始化状态预测矩阵 每个状态有两个分量
     C = np.zeros((N*n,N*p))  # 初始化输入影响矩阵
     D = np.zeros((N*n,N*n))  # 初始化常数矩阵
-    W = np.diag([5., 4., 3., 2., 1.]) * w
-    W = np.kron(W, np.eye(p))
+    W = np.diag(np.linspace(2,1,N)) 
+    weight = np.eye(p)
+    # weight[1,1] = 10
+    W = np.kron(W, weight)
+    # print(W)
     tmp = np.eye(n)
     
     # 构建预测方程矩阵
     for i in range(N):
         rows = i * n 
         B_tmp = np.dot(tmp, B)
-        for j in range(N):
-            if i >= j:
-                cols_C = j * p
-                cols_D = j * n
-                C[rows:rows+n,cols_C:cols_C+p] = B_tmp
-                D[rows:rows+n,cols_D:cols_D+n] = tmp
-        tmp = np.dot(A, tmp)
+        for j in range(N-i):
+            cols_C = j * p
+            cols_D = j * n
+            C[rows+j*n:rows+j*n+n,cols_C:cols_C+p] = B_tmp
+            D[rows+j*n:rows+j*n+n,cols_D:cols_D+n] = tmp
+        tmp = np.dot(tmp,A)
         M[rows:rows+n,:] = tmp
 
     # print(M)
@@ -102,7 +102,7 @@ def Prediction(M,T):
     # print(u_k)
     return u_k
 
-t = 0.1
+t = 0.05  # 时间步长
 v_r = 0.0
 theta_r = 0.0
 
@@ -113,43 +113,68 @@ n = A_hat.shape[0]  # 系统状态维度
 p = B_hat.shape[1]  # 控制输入维度
 
 # 定义仿真步数和预测时域长度
-k_steps = 500 # 总仿真步数
-N = 5  # 预测时域长度
+k_steps = 2000 # 总仿真步数
+N = 50 # 预测时域长度
 # 定义权重矩阵
 Q = np.eye(n*N)  # 状态权重矩阵
 # F = np.array([[1, 0],[0, 1]])  # 终端状态权重矩阵
 R = np.zeros((N*n, 1))  # 初始化R为全零矩阵
 
-# # 随机生成几个控制点
-# num_control=4
-# control_points = [0.2, 0.3, 0.5, 0.5]  # 生成3个随机控制点
-# # 使用线性插值生成连续轨迹
-# # print()
-# f2 = interp1d(np.linspace(0, k_steps, num_control), control_points, kind='cubic')
-# path = f2(range(k_steps))
+# R[2::3,0] = np.ones(N)*0 # 设置x方向的参考轨迹
+# print(R)
+# 随机生成几个控制点
+num_control=4
+control_points = [0.2, 0.3, 0.5, 0.9]  # 生成3个随机控制点
+# 使用线性插值生成连续轨迹
 
-# R[0::2,0] = path[:N]
+X = np.linspace(0, 1, k_steps)
+f2 = interp1d(np.linspace(0, k_steps, num_control), control_points, kind='cubic')
+path = f2(range(k_steps))
+# Calculate the derivative of the path
+path_diff = np.diff(path)
+path_tan = path_diff*k_steps
+# Calculate the angles of the tangents
+angles = np.arctan(path_tan)
+
+# Append the last angle to match the length of the path
+angles = np.append(angles, angles[-1])
+
+# # 单个轨迹点
+# R[0::n,0] = np.ones(N)  # 设置x方向的参考轨迹
+# R[1::n,0] = np.ones(N)  # 设置x方向的参考轨迹
+# R[2::n,0] = np.ones(N)*np.pi/2 # 设置x方向的参考轨迹
+
 # print(path)
-w = 1
+R[0::n,0] = X[:N]
+R[1::n,0] = path[:N]
+R[2::n,0] = angles[:N]
+# print(R)
+
 # 初始化状态和控制输入序列
 X_k = np.zeros((n, k_steps))  # 存储系统状态轨迹
-X_k[:,0] = [0, 1, 1]  # 设置初始状态
+X_k[:,0] = [-0.1, 0.1, np.pi/2]  # 设置初始状态
 U_k = np.zeros((p, k_steps))  # 存储控制输入序列
 
 # 主循环 - 系统仿真
-for k in range(1,k_steps):
+for k in range(1,k_steps-N):
     # 获取当前状态和控制输入
     x_kshort = X_k[:, k-1].reshape(-1, 1)
     u_kshort = U_k[:, k-1].reshape(-1, 1)
-    
+    # print(u_kshort)
     # 计算优化问题的参数
-    A_hat, B_hat, O_hat = compute_ABO(x_kshort[-1,0], u_kshort[0,0], t)
-    H, QC, M, D = cal_matrices(A_hat,B_hat,Q,w,N)
+    # print(path)
+    R[0::n,0] = X[k:k+N]
+    R[1::n,0] = path[k:k+N]
+    R[2::n,0] = angles[k:k+N]
+    # print 路径
+    # print(R)      
+    A_hat, B_hat, O_hat = compute_ABO(x_kshort[2,0], u_kshort[0,0], t)
+    H, QC, M, D = cal_matrices(A_hat, B_hat, Q, N)
     O = np.kron(O_hat, np.ones((N,1)))
     H = matrix(H)  # 转换为CVXOPT矩阵格式
     # 打印各个矩阵的形状
     # print(f"M {M.shape} X_kshort {x_kshort.shape} D {D.shape} O {O.shape} QC {QC.shape}")
-    T = np.dot((np.matmul(M, x_kshort)+np.matmul(D, O)-R).T, QC).T
+    T = np.dot((np.matmul(M, x_kshort) + np.matmul(D, O)-R).T, QC).T
     T = matrix(T)
     
     pred = Prediction(H,T)
@@ -167,13 +192,16 @@ for k in range(1,k_steps):
     X_k[:,k] = X_knew.reshape(n)
 
 # 打印状态轨迹
-# print(X_k)
+# print(angles)
 
 # 可视化位置和速度
 plt.figure(figsize=(12, 6))
 
+plt.plot(X[:-N], path[:-N], label='Reference', color='r')  # 位置参考轨迹
 # 位置子图
-plt.plot(X_k[0, :],X_k[1, :], label='Position', color='b')
+plt.plot(X_k[0, :-N],X_k[1, :-N], label='Position', color='b')
+# plt.plot(angles*180/np.pi, label='Reference', color='r')  # 角度参考轨迹
+
 plt.title('Position over Time')
 plt.xlabel('Time Steps')
 plt.ylabel('Position')

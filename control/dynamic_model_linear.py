@@ -10,9 +10,9 @@ class DifferentialDriveRobot:
         self.wheel_positions = np.array([
             [0.09497593, 0.08389566],
             [-0.07802407, 0.08389566],
+            [-0.07802394, -0.08248966],
             [0.09497606, -0.08248966],
-            [-0.07802394, -0.08248966]
-        ])
+        ])/3
         
         self.local_state = np.array([0.0, 0.0, 0.0])
         self.local_state_linear = np.array([0.0, 0.0, 0.0])
@@ -122,9 +122,7 @@ def compute_ABO(theta_r, v_r, t):
     
     return A_hat, B_hat, O_hat
 
-# 创建动画
-fig, ax = plt.subplots(figsize=(10, 10))
-robot = DifferentialDriveRobot()
+
 
 def init():
     width=4
@@ -140,7 +138,8 @@ trajectory = []  # Define a trajectory list to store the robot's path
 trajectory2 = []  # Define another trajectory list to store the robot's path using update2
 
 def animate(frame):
-    ax.clear()
+    # 创建动画
+
     init()
     
     # Simulate different motion modes
@@ -194,7 +193,12 @@ def animate(frame):
     
     return []
 
-# 创建动画
-anim = FuncAnimation(fig, animate, init_func=init,
-                    frames=100, interval=10, blit=True)
-plt.show()
+if __name__ == '__main__':
+    robot = DifferentialDriveRobot()
+    # 创建动画
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    ax.clear()
+    anim = FuncAnimation(fig, animate, init_func=init,
+                        frames=100, interval=10, blit=True)
+    plt.show()

@@ -64,13 +64,12 @@ def cal_matrices(A,B,Q,w,N):
     for i in range(N):
         rows = i * n 
         B_tmp = np.dot(tmp, B)
-        for j in range(N):
-            if i >= j:
-                cols = j * p
-                C[rows:rows+n,cols:cols+p] = B_tmp
+        for j in range(N-i):
+            cols = j * p
+            C[rows+j*n:rows+j*n+n,cols:cols+p] = B_tmp
         tmp = np.dot(A, tmp)
         M[rows:rows+n,:] = tmp
-    print(C)
+    print(M)
     # print(M)
     # 构建权重矩阵
     Q_bar = np.kron(np.eye(N), Q)  # 状态权重扩展
