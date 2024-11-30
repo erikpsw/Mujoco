@@ -104,7 +104,7 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
     U_k: np.ndarray - Control input sequence
     """
     sample_interval = k_steps // num_samples
-    pred_list=[]
+    pred_list = []
     v_r = 0.0
     theta_r = 0.0
     A_hat, B_hat, O_hat = compute_ABO(theta_r, v_r, t)
