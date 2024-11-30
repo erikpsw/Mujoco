@@ -21,7 +21,7 @@ class DifferentialDriveRobot:
         self.state_linear = np.array([0.0, 0.0, 0.0])
         
         # 车辆参数
-        self.W = 0.173  # 轮距（根据轮子坐标估算）
+        self.W = 1.1  # 轮距（根据轮子坐标估算）
         
     def update_state(self, vL, vR, dt):
         """
@@ -69,8 +69,8 @@ class DifferentialDriveRobot:
         A_hat, B_hat, O_hat = compute_ABO(theta_r, v, dt)
         u_k = np.array([v, omega])
         self.state_linear = np.matmul(A_hat, self.state_linear) + np.matmul(B_hat, u_k) + O_hat.flatten()
-        print(self.state_linear)
-        print(self.state)
+        # print(self.state_linear)
+        # print(self.state)
 
     
     def get_wheel_positions_world(self):

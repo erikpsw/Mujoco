@@ -2,6 +2,7 @@ from dm_control import mujoco
 import mujoco_viewer
 import numpy as np
 import matplotlib.pyplot as plt
+import dynamic_model_linear as dml
 
 # 设置模型文件路径
 # model_path = "../model/mini_mec_six_arm_4wd.xml"
@@ -26,7 +27,7 @@ def control_vel(joint_ids, positions):
 
 # 持续运行模拟
 joint_angles = [0, 0, 0, 0, 0, 0]
-vel = [5, 50, 5, 50]
+vel = [20, 60, 20, 60]
 # vel=[0,0,0,0]
 duration = 20
 
@@ -34,13 +35,23 @@ duration = 20
 trajectory = []
 max_traj_length = 1000
 wheel_pos_list=[]
-
+vhc = dml.DifferentialDriveRobot()
+# 更新机器人状态并收集模型轨迹数据
+model_trajectory = []
+dt = 0.002
 
 # 添加一个用于轨迹的线条
 viewer.add_line_to_fig('trajectory', 0)  # 添加到第一个图形（索引0）
 while viewer.is_alive:
     control_joints([0,1,2,3,4,5], joint_angles)    
     control_vel([6,7,8,9], vel)
+
+    slip_factor = 0.8
+    r = 0.028
+    v_R, v_L = vel[0] * r, vel[1] * r
+
+    vhc.update_state_linear(v_L, v_R, dt)
+    model_trajectory.append([vhc.state_linear[0], vhc.state_linear[1]])
     mujoco.mj_step(model, data)
     for i in range(10):           
         mujoco.mj_step(model, data)
@@ -50,7 +61,11 @@ while viewer.is_alive:
     geom_pos_14 = data.geom_xpos[14]
     mid_pos = (geom_pos_12 + geom_pos_14) / 2
     trajectory.append(np.array(mid_pos))
-
+    # joint_angles[1] -= 0.005
+    # joint_angles[0] += 0.005
+    # joint_angles[2] += 0.005
+    # print(joint_angles)
+    # 保持轨迹长度在一定范围内，避免性能问题
     if len(trajectory) > max_traj_length:
         trajectory.pop(0)
     
@@ -62,6 +77,7 @@ while viewer.is_alive:
     viewer.add_data_to_line('trajectory', mid_pos[0], 0)  # 只使用y坐标作为示例
     viewer.render()
 
+model_trajectory = np.array(model_trajectory)
 wheel_pos=np.array(wheel_pos_list)
 
 plt.figure(figsize=(6, 6))
@@ -69,6 +85,17 @@ for i in range(4):
     x_coords = wheel_pos[:, i, 0]
     y_coords = wheel_pos[:, i, 1]
     plt.scatter(x_coords, y_coords, label=f'Wheel {i+1}', s=100)
+    
+# 计算中心点
+center_x = np.mean(wheel_pos[:, :, 0], axis=1)
+center_y = np.mean(wheel_pos[:, :, 1], axis=1)
+center_x -= center_x[0]
+center_y -= center_y[0]
+
+# 绘制中心点
+plt.plot(center_x, center_y, label='Center Point', color='red')
+
+plt.plot(model_trajectory[:, 0], model_trajectory[:, 1], label='Model Trajectory')
 
 # 设置坐标轴和图例
 plt.xlabel('X Coordinate')

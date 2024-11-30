@@ -57,7 +57,6 @@ def cal_matrices(A, B, Q, N, n, p):
     weight = np.eye(p)
     W = np.kron(W, weight)
     tmp = np.eye(n)
-    
     for i in range(N):
         rows = i * n
         B_tmp = np.dot(tmp, B)
@@ -68,11 +67,10 @@ def cal_matrices(A, B, Q, N, n, p):
             D[rows+j*n:rows+j*n+n, cols_D:cols_D+n] = tmp
         tmp = np.dot(tmp, A)
         M[rows:rows+n, :] = tmp
-
     Q_bar = Q
     H = np.matmul(np.matmul(C.transpose(), Q_bar), C) + W
     QC = 2 * np.matmul(Q_bar, C)
-    return H, QC, M, D , C
+    return H, QC, M, D, C
 
 def Prediction(H, T, p):
     """
@@ -90,7 +88,6 @@ def Prediction(H, T, p):
 def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_samples=20):
     """
     Simulate the MPC controller.
-    
     Parameters:
     k_steps: int - Total simulation steps
     N: int - Prediction horizon length
@@ -98,7 +95,6 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
     num_control: int - Number of control points
     control_points: list - Control points for the reference path
     initial_state: list - Initial state of the system
-    
     Returns:
     X_k: np.ndarray - System state trajectory
     U_k: np.ndarray - Control input sequence
@@ -111,10 +107,9 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
     n = A_hat.shape[0]
     p = B_hat.shape[1]
     Q0 = np.eye(n)
-    Q0[-1,-1] = 1
+    Q0[-1, -1] = 1
     Q = np.kron(np.eye(N), Q0)
     R = np.zeros((N * n, 1))
-    
     X = np.linspace(0, 1, k_steps)
     f2 = interp1d(np.linspace(0, k_steps, num_control), control_points, kind='cubic')
     path = f2(range(k_steps))
@@ -122,41 +117,32 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
     path_tan = path_diff * k_steps
     angles = np.arctan(path_tan)
     angles = np.append(angles, angles[-1])
-    
     R[0::n, 0] = X[:N]
     R[1::n, 0] = path[:N]
     R[2::n, 0] = angles[:N]
-    
     X_k = np.zeros((n, k_steps))
     X_k[:, 0] = initial_state
     U_k = np.zeros((p, k_steps))
-    
     for k in range(1, k_steps - N):
-
         x_kshort = X_k[:, k-1].reshape(-1, 1)
         u_kshort = U_k[:, k-1].reshape(-1, 1)
         R[0::n, 0] = X[k:k+N]
         R[1::n, 0] = path[k:k+N]
         R[2::n, 0] = angles[k:k+N]
-        
         A_hat, B_hat, O_hat = compute_ABO(x_kshort[2, 0], u_kshort[0, 0], t)
         H, QC, M, D, C = cal_matrices(A_hat, B_hat, Q, N, n, p)
         O = np.kron(O_hat, np.ones((N, 1)))
         H = matrix(H)
         T = np.dot((np.matmul(M, x_kshort) + np.matmul(D, O) - R).T, QC).T
         T = matrix(T)
-        
         pred, U_thk = Prediction(H, T, p)
-        if k%sample_interval == 0 or k == 1 or k == k_steps - N-1:
+        if k % sample_interval == 0 or k == 1 or k == k_steps - N - 1:
             X_pred = np.matmul(M, x_kshort) + np.matmul(C, U_thk) + np.matmul(D, O)
             pred_list.append(X_pred.reshape(N, n))
-
         U_k[:, k] = pred.reshape(p)
         pred = np.expand_dims(pred, axis=1)
-        
         X_knew = np.matmul(A_hat, x_kshort) + np.matmul(B_hat, pred) + O_hat
         X_k[:, k] = X_knew.reshape(n)
-    
     return X_k, U_k, X, path, pred_list
 
 def plot_trajectory(X_k, X, path, N):
