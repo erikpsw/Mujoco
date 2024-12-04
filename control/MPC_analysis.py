@@ -6,14 +6,15 @@ import matplotlib.animation as animation
 from MPC_solver import simulate_mpc, plot_trajectory
 import dynamic_model_linear as dml
 import time
+
 # Simulation parameters
 k_steps = 2000
-N = 50
-t = 0.05
+N = 10
+t = 0.1
 
 num_control = 4
-control_points = [0.2, 0.3, 0.5, 0.9]
-initial_state = np.array([-0.1, 0.1, np.pi/2])
+control_points = [0.2, 0.5, 0.35, 0.9]
+initial_state = np.array([-0.1, 0.2, 0])
 num_sample=50
 
 # Run the simulation

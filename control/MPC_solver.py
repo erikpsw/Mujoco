@@ -52,8 +52,8 @@ def cal_matrices(A, B, Q, N, n, p):
     M = np.zeros((N*n, n))
     C = np.zeros((N*n, N*p))
     D = np.zeros((N*n, N*n))
-    W = np.diag(np.linspace(2, 0, N))
-    # W = np.eye(N)
+    # W = np.diag(np.linspace(2, 0, N))
+    W = np.eye(N)
     weight = np.eye(p)
     W = np.kron(W, weight)
     tmp = np.eye(n)
@@ -107,8 +107,9 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
     n = A_hat.shape[0]
     p = B_hat.shape[1]
     Q0 = np.eye(n)
-    Q0[-1, -1] = 1
-    Q = np.kron(np.eye(N), Q0)
+    W1 = np.diag(np.linspace(1, 1, N))
+    Q0[-1, -1] = 0.3
+    Q = np.kron(W1, Q0)
     R = np.zeros((N * n, 1))
     X = np.linspace(0, 1, k_steps)
     f2 = interp1d(np.linspace(0, k_steps, num_control), control_points, kind='cubic')
@@ -143,6 +144,7 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
         pred = np.expand_dims(pred, axis=1)
         X_knew = np.matmul(A_hat, x_kshort) + np.matmul(B_hat, pred) + O_hat
         X_k[:, k] = X_knew.reshape(n)
+
     return X_k, U_k, X, path, pred_list
 
 def plot_trajectory(X_k, X, path, N):

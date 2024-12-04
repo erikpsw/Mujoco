@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 from cvxopt import matrix, solvers
 import MPC_solver
 import dynamic_model_linear
+import math
 
 # Implementierung der Funktion compute_ABO
 def compute_ABO(theta_k, v_k, t):
@@ -75,11 +76,26 @@ def Prediction(H, T, p):
     pred = U_thk[:p]
     return pred, U_thk
 
+def rotationMatrixToEulerAngles(R) :
+    sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
+    singular = sy < 1e-6
+    if  not singular :
+        x = math.atan2(R[2,1] , R[2,2])
+        y = math.atan2(-R[2,0], sy)
+        z = math.atan2(R[1,0], R[0,0])
+    else :
+        x = math.atan2(-R[1,2], R[1,1])
+        y = math.atan2(-R[2,0], sy)
+        z = 0
+    return np.array([x, y, z])
+
+
 # Hauptskript
 if __name__ == "__main__":
     # Modellpfad anpassen
     model_path = '../model/mini_mec_six_arm_cylinder.xml'  # HIER ANPASSEN
     model = mujoco.MjModel.from_xml_path(model_path)
+    physics = mujoco.Physics.from_xml_path(model_path)
     data = mujoco.MjData(model)
 
     # 创建渲染器
@@ -97,13 +113,15 @@ if __name__ == "__main__":
 
 
     # 设置MPC参数
-    k_steps = 10000  # Sie können diesen Wert erhöhen, um den gesamten Pfad abzudecken
-    N = 10
-    t = 0.02
+    k_steps = 5000  # Sie können diesen Wert erhöhen, um den gesamten Pfad abzudecken
+    N = 5
+    simulation_step = 10
+    t = 0.002 * simulation_step
+    t = 0.2
     r = 0.028
 
     initial_state = np.array([0, 0, 0])
-    control_points = [0, 0.5, 0.3, 0.9]
+    control_points = [0, 0.4, 0.2, 0.6]
         # Anzahl der Kontrollpunkte
     num_control = len(control_points)
     
@@ -116,11 +134,12 @@ if __name__ == "__main__":
     p = B_hat.shape[1]
 
     mojoco_origin = np.array(data.geom_xpos[2:6]).mean(axis=0)[:n]
+    # print(mojoco_origin)
     Q0 = np.eye(n)
-    Q0[-1, -1] = 1
+    Q0[-1, -1] = 0.2
     Q = np.kron(np.eye(N), Q0)
     R = np.zeros((N * n, 1))
-    X = np.linspace(0, 1, k_steps)
+    X = np.linspace(0, 2, k_steps)
     f2 = interp1d(np.linspace(0, k_steps, num_control), control_points, kind='cubic')
     path = f2(range(k_steps))
     path_diff = np.diff(path)
@@ -153,12 +172,12 @@ if __name__ == "__main__":
     max_traj_length = 1000
     wheel_pos_list = []
     model_trajectory = []
-    dt = 0.002
     W = vhc.W
 
     # Hauptsimulationsschleife
     k = 1  # Schrittzähler für MPC
     while viewer.is_alive and k < k_steps - N:
+        # print(physics.timestep())
         # 控制关节角度（如果有必要）
         joint_angles = [0, 0, 0, 0, 0, 0]
         control_joints([0, 1, 2, 3, 4, 5], joint_angles)
@@ -177,15 +196,19 @@ if __name__ == "__main__":
         U_k[:, k] = pred.reshape(p)
         pred = np.expand_dims(pred, axis=1)
         cm_array = np.array(data.geom_xpos[2:6]).mean(axis=0)
-        X_k[:, k] = cm_array[:n] - mojoco_origin
-
-        print(pred)
+        rotation_matrix = data.geom_xmat[1].reshape(3, 3)
+        euler_angles = rotationMatrixToEulerAngles(rotation_matrix)
+        # print(angles[k])
+        X_k[:2, k] = cm_array[:2] - mojoco_origin[:2]
+        X_k[2, k] = euler_angles[2]-np.pi/2
+        # print(f"cm{cm_array[:2]}  X_k{X_k[:, k]}")
+        # print(pred)
         # 计算左轮和右轮的速度
         v_L = U_k[0, k] + (W / 2) * U_k[1, k]
         v_R = U_k[0, k] - (W / 2) * U_k[1, k]
         omega_R, omega_L = v_L / r, v_R / r
 
-        vhc.update_state_linear(omega_R, omega_L, dt)
+        vhc.update_state_linear(omega_R, omega_L, t)
         model_trajectory.append([vhc.state_linear[0], vhc.state_linear[1]])
 
         # Berechnung der Radgeschwindigkeiten
@@ -194,18 +217,18 @@ if __name__ == "__main__":
         control_vel([6, 7, 8, 9], wheel_speeds)
 
         # 模拟步骤
-        for _ in range(10):
+        for _ in range(simulation_step):
             mujoco.mj_step(model, data)
-
+            
         # 获取当前位置
         geom_pos_12 = data.geom_xpos[12]
         geom_pos_14 = data.geom_xpos[14]
         mid_pos = (geom_pos_12 + geom_pos_14) / 2
-        trajectory.append(np.array(mid_pos))
+        trajectory.append(cm_array)
         
-        # 保持轨迹长度在一定范围内，避免性能问题
-        if len(trajectory) > max_traj_length:
-            trajectory.pop(0)
+        # # 保持轨迹长度在一定范围内，避免性能问题
+        # if len(trajectory) > max_traj_length:
+        #     trajectory.pop(0)
 
         wheel_pos_list.append(np.array(data.geom_xpos[2:6]))
 
@@ -237,10 +260,11 @@ if __name__ == "__main__":
     # Zeichnen des Referenzpfades
     # plt.plot(path_x, path_y, 'k--', label='Geplanter Pfad')
     # Zeichnen der tatsächlichen Trajektorie
-    actual_traj = np.array(trajectory)
+    actual_traj = np.array(trajectory)-mojoco_origin
     model_trajectory = np.array(model_trajectory)
     plt.plot(actual_traj[:, 0], actual_traj[:, 1], 'r-', label='Reale Trajektorie')
-    plt.plot(model_trajectory[:, 0], model_trajectory[:, 1], label='model Trajektorie')
+    # plt.plot(model_trajectory[:, 0], model_trajectory[:, 1], label='model Trajektorie')
+    plt.plot(X[N:-N],path[N:-N], 'b--', label='Geplanter Pfad')
     # Markieren der Start- und Endpunkte
     # plt.scatter(path_x[0], path_y[0], color='green', label='Startpunkt', zorder=5)
     # plt.scatter(path_x[-1], path_y[-1], color='blue', label='Endpunkt', zorder=5)
