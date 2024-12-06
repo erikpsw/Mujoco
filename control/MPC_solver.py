@@ -120,7 +120,7 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
     angles = np.append(angles, angles[-1])
     R[0::n, 0] = X[:N]
     R[1::n, 0] = path[:N]
-    R[2::n, 0] = angles[:N]
+    R[2::n, 0] = np.sin(angles[:N])
     X_k = np.zeros((n, k_steps))
     X_k[:, 0] = initial_state
     U_k = np.zeros((p, k_steps))
@@ -137,6 +137,7 @@ def simulate_mpc(k_steps, N, t, num_control, control_points, initial_state, num_
         T = np.dot((np.matmul(M, x_kshort) + np.matmul(D, O) - R).T, QC).T
         T = matrix(T)
         pred, U_thk = Prediction(H, T, p)
+        
         if k % sample_interval == 0 or k == 1 or k == k_steps - N - 1:
             X_pred = np.matmul(M, x_kshort) + np.matmul(C, U_thk) + np.matmul(D, O)
             pred_list.append(X_pred.reshape(N, n))

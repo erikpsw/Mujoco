@@ -10,32 +10,24 @@ import dynamic_model_linear
 import math
 
 # Implementierung der Funktion compute_ABO
-def compute_ABO(theta_k, v_k, t):
-    v_xk = v_k[0]
-    v_yk = v_k[1]
-    omega_k = v_k[2]
-
-    sin_theta = np.sin(theta_k)
-    cos_theta = np.cos(theta_k)
-
-    # Kontinuierliche A-Matrix (Jacobi-Matrix bezüglich der Zustände)
-    A_continuous = np.array([
-        [0, 0, -v_xk * sin_theta - v_yk * cos_theta],
-        [0, 0,  v_xk * cos_theta - v_yk * sin_theta],
-        [0, 0, 0]
-    ])
-
-    # Kontinuierliche B-Matrix (Jacobi-Matrix bezüglich der Eingaben)
-    B_continuous = np.array([
-        [cos_theta, -sin_theta, 0],
-        [sin_theta,  cos_theta, 0],
+def compute_ABO(theta_r, v_r, t):
+    A_hat = np.array([
+        [1, 0, -t * v_r * np.sin(theta_r)],
+        [0, 1, t * v_r * np.cos(theta_r)],
         [0, 0, 1]
     ])
-
-    # Diskretisierung mit Euler-Methode
-    A_hat = np.eye(3) + A_continuous * t
-    B_hat = B_continuous * t
-    O_hat = np.zeros((3, 1))  # Falls es keinen Offset gibt
+    
+    B_hat = np.array([
+        [t * np.cos(theta_r), 0],
+        [t * np.sin(theta_r), 0],
+        [0, t]
+    ])
+    
+    O_hat = np.array([
+        [theta_r * t * v_r * np.sin(theta_r)],
+        [-theta_r * t * v_r * np.cos(theta_r)],
+        [0]
+    ])
 
     return A_hat, B_hat, O_hat
 
@@ -114,17 +106,17 @@ if __name__ == "__main__":
 
     # 设置MPC参数
     k_steps = 5000  # Sie können diesen Wert erhöhen, um den gesamten Pfad abzudecken
-    N = 5
+    N = 4
     simulation_step = 10
     t = 0.002 * simulation_step
-    t = 0.2
+    t = 0.4
     r = 0.028
+    N_target = 1000
 
     initial_state = np.array([0, 0, 0])
     control_points = [0, 0.4, 0.2, 0.6]
         # Anzahl der Kontrollpunkte
     num_control = len(control_points)
-    
 
     pred_list = []
     v_r = 0.0
@@ -136,7 +128,7 @@ if __name__ == "__main__":
     mojoco_origin = np.array(data.geom_xpos[2:6]).mean(axis=0)[:n]
     # print(mojoco_origin)
     Q0 = np.eye(n)
-    Q0[-1, -1] = 0.2
+    Q0[-1, -1] = 2
     Q = np.kron(np.eye(N), Q0)
     R = np.zeros((N * n, 1))
     X = np.linspace(0, 2, k_steps)
@@ -149,9 +141,9 @@ if __name__ == "__main__":
     R[0::n, 0] = X[:N]
     R[1::n, 0] = path[:N]
     R[2::n, 0] = angles[:N]
-    X_k = np.zeros((n, k_steps))
+    X_k = np.zeros((n, k_steps + N_target))
     X_k[:, 0] = initial_state
-    U_k = np.zeros((p, k_steps))
+    U_k = np.zeros((p, k_steps + N_target))
 
     # MPC_solver.plot_trajectory(X_k, X, path, N)
     # plt.show()
@@ -169,38 +161,46 @@ if __name__ == "__main__":
 
     # 初始化轨迹点列表
     trajectory = []
-    max_traj_length = 1000
+    max_traj_length = 2000
     wheel_pos_list = []
     model_trajectory = []
     W = vhc.W
 
     # Hauptsimulationsschleife
     k = 1  # Schrittzähler für MPC
-    while viewer.is_alive and k < k_steps - N:
+    while viewer.is_alive and k < k_steps - N + N_target:
         # print(physics.timestep())
         # 控制关节角度（如果有必要）
         joint_angles = [0, 0, 0, 0, 0, 0]
         control_joints([0, 1, 2, 3, 4, 5], joint_angles)
         x_kshort = X_k[:, k-1].reshape(-1, 1)
         u_kshort = U_k[:, k-1].reshape(-1, 1)
-        R[0::n, 0] = X[k:k+N]
-        R[1::n, 0] = path[k:k+N]
-        R[2::n, 0] = angles[k:k+N]
+        if k < k_steps - N:
+            R[0::n, 0] = X[k:k+N]
+            R[1::n, 0] = path[k:k+N]
+            R[2::n, 0] = angles[k:k+N]
+        else:
+            R[0::n, 0] = X[-1]
+            R[1::n, 0] = path[-1]
+            R[2::n, 0] = angles[-1]
         A_hat, B_hat, O_hat = MPC_solver.compute_ABO(x_kshort[2, 0], u_kshort[0, 0], t)
         H, QC, M, D, C = MPC_solver.cal_matrices(A_hat, B_hat, Q, N, n, p)
         O = np.kron(O_hat, np.ones((N, 1)))
         H = matrix(H)
         T = np.dot((np.matmul(M, x_kshort) + np.matmul(D, O) - R).T, QC).T
+       
         T = matrix(T)
         pred, U_thk = Prediction(H, T, p)
+        # print(np.max(np.abs(np.matmul(M, x_kshort) + np.matmul(C, U_thk) - R)[2::3]))
         U_k[:, k] = pred.reshape(p)
         pred = np.expand_dims(pred, axis=1)
         cm_array = np.array(data.geom_xpos[2:6]).mean(axis=0)
         rotation_matrix = data.geom_xmat[1].reshape(3, 3)
         euler_angles = rotationMatrixToEulerAngles(rotation_matrix)
-        # print(angles[k])
+        # euler_angles[2] - np.pi/2, angles[k], 
+        # print(euler_angles[2] - np.pi/2 - angles[k])
         X_k[:2, k] = cm_array[:2] - mojoco_origin[:2]
-        X_k[2, k] = euler_angles[2]-np.pi/2
+        X_k[2, k] = euler_angles[2] - np.pi/2
         # print(f"cm{cm_array[:2]}  X_k{X_k[:, k]}")
         # print(pred)
         # 计算左轮和右轮的速度
