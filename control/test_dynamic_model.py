@@ -115,6 +115,8 @@ if __name__ == "__main__":
 
     initial_state = np.array([0, 0, 0])
     control_points = [0, 0.4, 0.2, 0.6]
+
+    control_points = [0.0, 0.4, 0.2, 0.0]
         # Anzahl der Kontrollpunkte
     num_control = len(control_points)
 
@@ -134,6 +136,10 @@ if __name__ == "__main__":
     X = np.linspace(0, 2, k_steps)
     f2 = interp1d(np.linspace(0, k_steps, num_control), control_points, kind='cubic')
     path = f2(range(k_steps))
+    f3 = interp1d(np.linspace(0, 200, num_control), control_points, kind='cubic')
+    X2 = np.linspace(0, 2, 200)
+    path2 = f3(range(200))
+
     path_diff = np.diff(path)
     path_tan = path_diff * k_steps
     angles = np.arctan(path_tan)
@@ -165,10 +171,20 @@ if __name__ == "__main__":
     wheel_pos_list = []
     model_trajectory = []
     W = vhc.W
-
+    # 遍历并绘制整个轨迹
+    for idx, y in enumerate(path2):
+        pos = [X2[idx], y, 0.1]
+        viewer.add_marker(pos=pos, size=np.array([0.01, 0.01, 0.01]), rgba=[1,0, 0, 1])
+        
     # Hauptsimulationsschleife
     k = 1  # Schrittzähler für MPC
     while viewer.is_alive and k < k_steps - N + N_target:
+  
+        # Add markers in each iteration
+        for idx, y in enumerate(path2):
+            pos = [X2[idx], y, 0.1]
+            viewer.add_marker(pos=pos, size=np.array([0.01, 0.01, 0.001]), rgba=[1, 0, 0, 1])
+
         # print(physics.timestep())
         # 控制关节角度（如果有必要）
         joint_angles = [0, 0, 0, 0, 0, 0]

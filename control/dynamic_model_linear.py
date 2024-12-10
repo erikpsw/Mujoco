@@ -12,7 +12,7 @@ class DifferentialDriveRobot:
             [-0.07802407, 0.08389566],
             [-0.07802394, -0.08248966],
             [0.09497606, -0.08248966],
-        ])/3
+        ])
         
         self.local_state = np.array([0.0, 0.0, 0.0])
         self.local_state_linear = np.array([0.0, 0.0, 0.0])
@@ -63,7 +63,8 @@ class DifferentialDriveRobot:
         v_o = np.array([vL, vR])
         # print(transformation_matrix @ v_o)
         v, omega = transformation_matrix @ v_o
-
+        v += 0.1
+        omega += 0.1
         # Update the state using the linearized model
         theta_r = self.state_linear[2]
         A_hat, B_hat, O_hat = compute_ABO(theta_r, v, dt)
@@ -125,7 +126,7 @@ def compute_ABO(theta_r, v_r, t):
 
 
 def init():
-    width=4
+    width=2
     ax.set_xlim(-width, width)
     ax.set_ylim(-width, width)
     ax.grid(True)
@@ -139,24 +140,24 @@ trajectory2 = []  # Define another trajectory list to store the robot's path usi
 
 def animate(frame):
     # 创建动画
-
+    ax.clear()  
     init()
-    
+    dt = 0.01
     # Simulate different motion modes
     t = frame * 0.1
     vL = 1  # Left wheel speed
-    vR = 0.9  # Right wheel speed
-    
+    vR = 0.5  # Right wheel speed
+
     # Update robot state
-    ICR_x, ICR_y, R_ICR = robot.update_state(vL, vR, 0.1)
+    ICR_x, ICR_y, R_ICR = robot.update_state(vL, vR, dt)
     
     # Record the current position in the trajectory
     trajectory.append((robot.state[0], robot.state[1]))
     # Update robot state
-    robot.update_state_linear(vL, vR, 0.1)
+    robot.update_state_linear(vL, vR, dt)
     # Record the current position in the second trajectory using update2
     trajectory2.append((robot.state_linear[0], robot.state_linear[1]))  # Example update2 logic
-    
+    print(robot.state, robot.state_linear)
     # Draw the robot body
     wheel_positions = robot.get_wheel_positions_world()
     
@@ -177,28 +178,25 @@ def animate(frame):
     
     # Draw the robot's trajectory
     trajectory_x, trajectory_y = zip(*trajectory)  # Unzip the trajectory list
-    ax.plot(trajectory_x, trajectory_y, 'r-', markersize=2)  # Draw red trajectory
+    ax.plot(trajectory_x, trajectory_y, 'r-', markersize=2, label = "Nonelinear Trajectory")  # Draw red trajectory
     
     # Draw the second trajectory
     trajectory2_x, trajectory2_y = zip(*trajectory2)  # Unzip the second trajectory list
-    ax.plot(trajectory2_x, trajectory2_y, 'b--', markersize=2, label='Second Trajectory')  # Draw blue dashed trajectory
-    ax.legend()
+    ax.plot(trajectory2_x, trajectory2_y, 'b--', markersize=2, label='Linear Trajectory')  # Draw blue dashed trajectory
     
     # If ICR exists, draw the ICR point and arc
     if abs(R_ICR) > 1e-6:
         ICR_world_x = robot.state[0] + ICR_x * np.cos(robot.state[2]) - ICR_y * np.sin(robot.state[2])
         ICR_world_y = robot.state[1] + ICR_x * np.sin(robot.state[2]) + ICR_y * np.cos(robot.state[2])
         ax.plot(ICR_world_x, ICR_world_y, 'rx', markersize=10, label='ICR')
-        ax.legend()
-    
+    ax.legend()
     return []
 
 if __name__ == '__main__':
     robot = DifferentialDriveRobot()
     # 创建动画
     fig, ax = plt.subplots(figsize=(10, 10))
-
-    ax.clear()
     anim = FuncAnimation(fig, animate, init_func=init,
                         frames=100, interval=10, blit=True)
+
     plt.show()
